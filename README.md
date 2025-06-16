@@ -77,6 +77,48 @@ export PYTHONPATH=/opt/openrobots/lib/python3.12/site-packages:$PYTHONPATH
 sudo apt install liblz4-dev
 ```
 
+To run the benchmark script it is additionally necessary to satisfy the following requirements for your python environment. (Here, using a dedicated virtual environment as system level doesn't work without risking breaking packages.)
+
+```
+# TQDM
+pip install tqdm
+
+# PSUtil
+pip install psutil
+
+# Matplotlib
+pip install matplotlib
+
+# Iteration Utilities
+pip install iteration_utilities
+
+# YAML
+pip install pyyaml
+
+# PDF Crop
+pip install pdf-crop
+
+# ------------------------------------
+# The following are required for S2M2
+# ------------------------------------
+# Polytope
+pip install polytope
+
+# Gurobi
+pip install gurobipy
+
+# Pypoman
+sudo apt-get install cython3 libglpk-dev python3 python3-dev python3-pip
+sudo apt install install libcdd-dev libgmp-dev
+pip install pycddlib
+pip install pypoman
+
+# Shapely
+pip install shapely
+
+# And probably even more.
+```
+
 
 ## Building
 

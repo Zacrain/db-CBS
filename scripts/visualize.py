@@ -13,7 +13,7 @@ from iteration_utilities import deepflatten
 import subprocess
 
 def draw_sphere_patch(ax, center, radius, angle = 0, **kwargs):
-  xy = np.asarray(center) 
+  xy = np.asarray(center)
   sphere = Circle(xy, radius, **kwargs)
   t = matplotlib.transforms.Affine2D().rotate_around(
       center[0], center[1], angle)
@@ -36,7 +36,7 @@ class Animation:
     with open(filename_env) as env_file:
       env = yaml.safe_load(env_file)
 
-    self.fig = plt.figure() 
+    self.fig = plt.figure()
     self.ax = self.fig.add_subplot(111, aspect='equal')
     self.ax.set_xlim(env["environment"]["min"][0], env["environment"]["max"][0])
     self.ax.set_ylim(env["environment"]["min"][1], env["environment"]["max"][1])
@@ -60,7 +60,7 @@ class Animation:
     self.colors = cmap(np.linspace(0, 1, len(env["robots"]), True))
 
     for robot, color in zip(env["robots"], self.colors):
-      self.robot_types.append(robot["type"])  
+      self.robot_types.append(robot["type"])
       if filename_result is None:
         self.draw_robot(robot["start"], robot["type"], facecolor=color, alpha=0.3)
       if filename_output is None:
@@ -97,7 +97,7 @@ class Animation:
         self.ax.get_xaxis().set_visible(False)
         self.ax.get_yaxis().set_visible(False)
         self.fig.savefig(fname)
-        subprocess.run(["pdfcrop", fname, fname])
+        subprocess.run(["pdf_crop", "-i", fname])
         for p in add_patches:
           p.remove()
         self.ax.get_xaxis().set_visible(True)
@@ -127,7 +127,7 @@ class Animation:
     plt.show()
 
   def animate_func(self, i):
-    print(i)
+    # print(i)
     for k, robot in enumerate(self.result["result"]): # for each robot
       if i >= len(robot["states"]):
         state = robot["states"][-1]
@@ -227,7 +227,7 @@ class Animation:
         kwargs['facecolor'] = 'black'
         patches.append(draw_sphere_patch(self.ax, pos2, 0.03, 0, **kwargs))
     return patches
-  
+
   def draw_trajectory(self, states, type, color, **kwargs):
     states = np.array(states)
     if color is not None:

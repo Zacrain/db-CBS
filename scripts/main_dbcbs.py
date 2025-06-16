@@ -19,6 +19,10 @@ def run_dbcbs(filename_env, folder, timelimit, cfg):
         filename_cfg = p / "cfg.yaml"
         with open(filename_cfg, 'w') as f:
             yaml.dump(cfg, f, Dumper=yaml.CSafeDumper)
+        # Save a copy of the config for debugging
+        debug_cfg_path = Path(folder) / "debug_cfg.yaml"
+        with open(debug_cfg_path, 'w') as f_debug:
+            yaml.dump(cfg, f_debug, Dumper=yaml.CSafeDumper)
 
         print(filename_env)
         filename_stats = "{}/stats.yaml".format(folder)
@@ -26,13 +30,13 @@ def run_dbcbs(filename_env, folder, timelimit, cfg):
         duration_dbcbs = 0
         with open(filename_stats, 'w') as stats:
             stats.write("stats:\n")
-            
+
             filename_result_dbcbs = Path(folder) / "result_dbcbs.yaml"
             filename_result_dbcbs_joint = Path(folder) / "dbcbs_joint.yaml"
             filename_result_dbcbs_opt = Path(folder) / "result_dbcbs_opt.yaml"
             t_dbcbs_start = time.time()
 
-            cmd = ["./db_cbs", 
+            cmd = ["./db_cbs",
                 "-i", filename_env,
                 "-o", filename_result_dbcbs,
                 "--joint", filename_result_dbcbs_joint,
