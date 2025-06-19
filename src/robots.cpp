@@ -95,7 +95,7 @@ class RobotDoubleIntegrator2D : public Robot
 public:
   RobotDoubleIntegrator2D(
     const ompl::base::RealVectorBounds& position_bounds,
-    float v_min, 
+    float v_min,
     float v_max,
     float a_min,
     float a_max)
@@ -253,12 +253,12 @@ public:
       return as<ob::RealVectorStateSpace>(0)->getBounds();
     }
 
-    void setVelocityBounds(const ob::RealVectorBounds &bounds) 
+    void setVelocityBounds(const ob::RealVectorBounds &bounds)
     {
       as<ob::RealVectorStateSpace>(1)->setBounds(bounds);
     }
-    
-    const ob::RealVectorBounds &getVelocityBounds() const 
+
+    const ob::RealVectorBounds &getVelocityBounds() const
     {
       return as<ob::RealVectorStateSpace>(1)->getBounds();
     }
@@ -737,10 +737,10 @@ public:
       float phi_max,
       float L): L_(L)
   {
-    
+
     geom_.emplace_back(new fcl::Boxf(0.5, 0.25, 1.0));
     auto space(std::make_shared<StateSpace>());
-    space->setPositionBounds(position_bounds);  
+    space->setPositionBounds(position_bounds);
 
     auto cspace(std::make_shared<oc::RealVectorControlSpace>(space, 2));
     // set the bounds for the control space
@@ -778,7 +778,7 @@ public:
       float dt = std::min(remaining_time, dt_);
       theta += ctrl[0] / L_ * tanf(ctrl[1]) * dt;
       x += ctrl[0] * cosf(theta) * dt;
-      y += ctrl[0] * sinf(theta) * dt;  
+      y += ctrl[0] * sinf(theta) * dt;
 
       remaining_time -= dt;
     } while (remaining_time >= dt_);
@@ -824,7 +824,7 @@ protected:
         return sub->getX();
 
       }
- 
+
       double getY() const
       {
 
@@ -844,7 +844,7 @@ protected:
       {
         auto sub = as<ob::SE2StateSpace::StateType>(0);
         sub->setX(x);
-        
+
       }
 
       void setY(double y)
@@ -866,7 +866,7 @@ protected:
     {
       setName("RobotCarFirstOrder" + getName());
       type_ = ob::STATE_SPACE_TYPE_COUNT + 0;
-      addSubspace(std::make_shared<ob::SE2StateSpace>(), 1.0);  
+      addSubspace(std::make_shared<ob::SE2StateSpace>(), 1.0);
       lock();
     }
 
@@ -881,7 +881,7 @@ protected:
     {
       return as<ob::SE2StateSpace>(0)->getBounds();
     }
-    
+
     ob::State *allocState() const override
     {
       auto *state = new StateType();
@@ -894,7 +894,7 @@ protected:
       CompoundStateSpace::freeState(state);
     }
 
-  };        
+  };
 protected:
   float L_;
 };
@@ -1177,6 +1177,107 @@ protected:
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
+class DingoDifferentialDrive : public Robot
+{
+  public:
+  /** Dingo Differential Drive Constructor
+   *
+   * NOTE: In case v_min, v_max, w_min, w_max, half_axle_length, length, width, height are allowed to be parameterized again
+   *       the maximum angular velocity computations need to be adjusted. See in comments below.
+   *
+   * \param[in] position_bounds: bounds for the position of the robot in m.
+  //  * \param[in] v_min: minimum linear velocity in m/s. Default: -1.3 m/s
+  //  * \param[in] v_max: maximum linear velocity in m/s. Default: 1.3 m/s
+  //  * \param[in] half_axle_length: half the distance between the two wheels in m. Default: 0.2405 m
+  //  * \param[in] w_min: minimum angular velocity in rad/s. Default: -1.3 m/s / 0.2405 m = -5.405405... rad/s (about -309.7 °/s)
+  //  * \param[in] w_max: maximum angular velocity in rad/s. Default: 1.3 m/s / 0.2405 m = 5.405405... rad/s (about 309.7 °/s)
+  //  * \param[in] length: length of the robot in m. Default: 0.551 m
+  //  * \param[in] width: width of the robot in m. Default: 0.517 m
+  //  * \param[in] height: height of the robot in m. Default: 0.11 m
+   * \param[in] dt: simulation step time delta. Defaults to 60 Hz, i.e. about 0.0167 seconds.
+   *
+   * By default, the robot is assumed to have the following dimensions (-> collision shape):
+   * - Length along x-axis (forward direction): 55,1 cm
+   * - Width along y-axis (sideways): 51,7 cm
+   * - Height along z-axis (upwards): 11 cm (without ground clearance) (irrelevant anyways since used as 2D)
+   */
+  DingoDifferentialDrive(
+    const ompl::base::RealVectorBounds& position_bounds,
+    // float v_min = -1.3f, float v_max = 1.3f, float half_axle_length = 0.2405f,
+    // float w_min = v_min / 0.2405f, float w_max = v_max / 0.2405f,
+    // float length = 0.551f, float width = 0.517f, float height = 0.11f,
+    float dt = 1.0f / 60.0f)
+  {
+    // Collision Shape
+    float length = 0.551f; // Length along x-axis (forward direction)
+    float width = 0.517f;  // Width along y-axis (sideways)
+    float height = 0.11f;  // Height along z-axis (upwards
+    geom_.emplace_back(new fcl::Boxf(length, width, height));
+
+    // State Space and Position Bounds
+    std::shared_ptr<ob::SE2StateSpace> space = std::make_shared<ob::SE2StateSpace>();
+    space->setBounds(position_bounds);
+
+    // Control Space and Control Bounds
+    std::shared_ptr<oc::RealVectorControlSpace> cspace = std::make_shared<oc::RealVectorControlSpace>(space, 2);
+    ob::RealVectorBounds cbounds(2);
+    float half_axle_length = 0.2405f; // Half the distance between the two wheels
+    float v_min = -1.3f; // Minimum linear velocity in m/s
+    float v_max = 1.3f; // Maximum linear velocity in m/s
+    float w_min = v_min / half_axle_length;
+    float w_max = v_max / half_axle_length;
+    // NOTE: in case the above values are allowed to be parameterized again, the max/min angular velocity computation
+    //       needs to be adjusted to:
+    //       float w_max = (v_max - v_min) / (2.0f * half_axle_length);
+    //       float w_min = -w_max;
+    cbounds.setLow(0, v_min);
+    cbounds.setHigh(0, v_max);
+    cbounds.setLow(1, w_min);
+    cbounds.setHigh(1, w_max);
+    cspace->setBounds(cbounds);
+
+    // Space information
+    si_ = std::make_shared<oc::SpaceInformation>(space, cspace);
+
+    // Remaining parameters
+    dt_ = 1.0f / 60.0f; // 60 Hz But less imporatant here, because motion primitives are used. TODO: really?
+    is2D_ = true; // Dingo operates on a 2D plane
+    max_speed_ = std::max(fabsf(v_min), fabsf(v_max));
+  }
+
+  void propagate(
+    const ompl::base::State *start,
+    const ompl::control::Control *control,
+    const double duration,
+    ompl::base::State *result) override
+  {
+    // TODO: use motion primitives.
+  }
+
+  fcl::Transform3f getTransform(
+    const ompl::base::State *state,
+    size_t part = 0) override
+  {
+    auto stateTyped = state->as<ob::SE2StateSpace::StateType>();
+
+    fcl::Transform3f result;
+    result = Eigen::Translation<float, 3>(fcl::Vector3f(stateTyped->getX(), stateTyped->getY(), 0.0f));
+    float yaw = stateTyped->getYaw();
+    result.rotate(Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitZ()));
+    return result;
+  }
+
+  void setPosition(ompl::base::State* state, const fcl::Vector3f position, size_t part = 0) override
+  {
+    auto stateTyped = state->as<ob::SE2StateSpace::StateType>();
+    stateTyped->setX(position(0));
+    stateTyped->setY(position(1));
+  }
+
+}; // Class DingoDifferentialDrive
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
 class MultiRobot : public Robot
 {
 public:
@@ -1236,7 +1337,7 @@ public:
         robots_[i]->propagate(startTyped->components[i], (*controlTyped)[i], duration, (*resultTyped)[i]);
       // } else {
       //   // if we are at the goal for this robot, just copy the previous state
-      //   auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get()); 
+      //   auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get());
       //   auto csp = csi->getStateSpace()->as<ompl::base::CompoundStateSpace>();
       //   auto si_k = csp->getSubspace(i);
 
@@ -1245,7 +1346,7 @@ public:
 
       //   // option 2
       //   // std::vector<double> reals(si_k->getDimension(), nan(""));
-      //   // si_k->copyFromReals((*resultTyped)[i], reals); 
+      //   // si_k->copyFromReals((*resultTyped)[i], reals);
       // }
     }
   }
@@ -1262,7 +1363,7 @@ public:
   }
 
   virtual void setPosition(
-      ompl::base::State *state, 
+      ompl::base::State *state,
       const fcl::Vector3f position,
       size_t part) override
   {
@@ -1366,13 +1467,18 @@ std::shared_ptr<Robot> create_robot(
         /*a_max*/ 2.0 /* m/s^2*/
         ));
   }
-  
+  else if (robotType == "dingo_differential_drive")
+  {
+    robot.reset(new DingoDifferentialDrive());
+  }
+
   else
   {
     throw std::runtime_error("Unknown robot type!");
   }
   return robot;
 }
+
 std::shared_ptr<Robot> create_joint_robot(
   std::vector<std::shared_ptr<Robot>> robots)
 {
