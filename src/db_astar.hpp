@@ -178,7 +178,7 @@ float heuristic(std::shared_ptr<Robot> robot, const ob::State *s, const ob::Stat
     Eigen::Vector3f goal_pos = robot->getTransform(g).translation();
 
     float dist = (current_pos - goal_pos).norm();
-    const float max_vel = robot->maxSpeed(); // m/s./db_    
+    const float max_vel = robot->maxSpeed(); // m/s./db_
     // const float time = dist / max_vel;
     const float time = std::max((dist-delta) / max_vel, 0.0f);
     return time;
@@ -240,16 +240,16 @@ void load_motions(
       throw msgpack::type_error();
     }
 
-    for (size_t i = 0; i < msg_obj.via.array.size; ++i) {  
+    for (size_t i = 0; i < msg_obj.via.array.size; ++i) {
       Motion m;
       m.aabb = fcl::AABB(fcl::Vector3f(0,0,0));
       // find the states
-      auto item = msg_obj.via.array.ptr[i]; 
+      auto item = msg_obj.via.array.ptr[i];
       if (item.type != msgpack::type::MAP) {
         throw msgpack::type_error();
       }
       // load the states
-      for (size_t j = 0; j < item.via.map.size; ++j) { 
+      for (size_t j = 0; j < item.via.map.size; ++j) {
         auto key = item.via.map.ptr[j].key.as<std::string>();
         if (key == "states") {
           auto val = item.via.map.ptr[j].val;
@@ -289,8 +289,14 @@ void load_motions(
           break;
         }
       }
-      m.cost = m.actions.size() * robot->dt(); 
+      m.cost = m.actions.size() * robot->dt();
       m.idx = result.motions.size();
+
+      // Debug: Print motion primitive duration information
+      if (result.motions.size() < 10) { // Only print for first 10 motions to avoid spam
+        std::cout << "Motion " << m.idx << ": " << m.actions.size() << " actions, dt="
+                  << robot->dt() << "s, total duration=" << m.cost << "s" << std::endl;
+      }
 
       // add the last state translated to the origin
       m.last_state_translated = si->cloneState(m.states.back());
@@ -312,11 +318,31 @@ void load_motions(
       m.collision_manager.reset(new ShiftableDynamicAABBTreeCollisionManager<float>());
       m.collision_manager->registerObjects(m.collision_objects);
 
-      m.disabled = false; 
+      m.disabled = false;
 
-      result.motions.push_back(m); 
+      result.motions.push_back(m);
     } // end of for loop, looping over all 5k motions
     std::cout << "Info: " << num_invalid_states << " states are invalid of " << num_states << std::endl;
+
+    // Debug: Print motion primitive duration statistics
+    if (!result.motions.empty()) {
+      double min_duration = result.motions[0].cost;
+      double max_duration = result.motions[0].cost;
+      double total_duration = 0;
+
+      for (const auto& motion : result.motions) {
+        min_duration = std::min(min_duration, static_cast<double>(motion.cost));
+        max_duration = std::max(max_duration, static_cast<double>(motion.cost));
+        total_duration += motion.cost;
+      }
+
+      double avg_duration = total_duration / result.motions.size();
+      std::cout << "Motion Primitive Duration Stats:" << std::endl;
+      std::cout << "  Total motions loaded: " << result.motions.size() << std::endl;
+      std::cout << "  Duration range: " << min_duration << "s to " << max_duration << "s" << std::endl;
+      std::cout << "  Average duration: " << avg_duration << "s" << std::endl;
+      std::cout << "  Robot dt: " << robot->dt() << "s" << std::endl;
+    }
 
     auto rng = std::default_random_engine{};
     std::shuffle(std::begin(result.motions), std::end(result.motions), rng);
@@ -365,22 +391,22 @@ void disable_motions(
 
   #if 0
   if (delta < 0) {
-    Motion fakeMotion; 
+    Motion fakeMotion;
     fakeMotion.idx = -1;
     fakeMotion.states.push_back(si->allocState());
     std::vector<Motion *> neighbors_m;
-    size_t num_desired_neighbors = (size_t)-delta; 
+    size_t num_desired_neighbors = (size_t)-delta;
     size_t num_samples = std::min<size_t>(1000, result.motions.size());
 
     auto state_sampler = si->allocStateSampler();
     float sum_delta = 0.0;
-    for (size_t k = 0; k < num_samples; ++k) { 
+    for (size_t k = 0; k < num_samples; ++k) {
       do {
         state_sampler->sampleUniform(fakeMotion.states[0]);
       } while (!si->isValid(fakeMotion.states[0]));
       robot->setPosition(fakeMotion.states[0], fcl::Vector3f(0, 0, 0));
 
-        result.T_m_start->nearestK(&fakeMotion, num_desired_neighbors+1, neighbors_m); 
+        result.T_m_start->nearestK(&fakeMotion, num_desired_neighbors+1, neighbors_m);
 
       float max_delta = si->distance(fakeMotion.states[0], neighbors_m.back()->states.front());
       sum_delta += max_delta;
@@ -413,7 +439,7 @@ void disable_motions(
       result.T_m_start->nearestR(&fakeMotion, delta*alpha, neighbors_m); // finding applicable motions with discont.
 
       for (Motion* nm : neighbors_m) {
-        if (nm == &m || nm->disabled) { 
+        if (nm == &m || nm->disabled) {
           continue;
         }
         float goal_delta = si->distance(m.states.back(), nm->states.back());
@@ -458,7 +484,7 @@ public:
     const Motions& motions,
     const std::vector<double>& robot_start,
     const std::vector<double>& robot_goal,
-    const std::vector<fcl::CollisionObjectf *>& obstacles, 
+    const std::vector<fcl::CollisionObjectf *>& obstacles,
     const fcl::AABBf& workspace_aabb,
     std::shared_ptr<Robot> robot,
     const std::vector<Constraint>& constraints,
@@ -506,7 +532,7 @@ public:
       si->getStateSpace()->copyFromReals(startState, robot_goal);
     }
     si->enforceBounds(startState);
-    
+
     // set goal state
     auto goalState = si->allocState();
     if (!reverse_search) {
@@ -563,7 +589,7 @@ public:
   }
   start_node->arrivals.push_back({.gScore = 0, .came_from = nullptr, .used_motion = (size_t)-1, .arrival_idx = (size_t)-1});
 
-  auto handle = open.push(start_node); 
+  auto handle = open.push(start_node);
   start_node->handle = handle;
   start_node->is_in_open = true;
   start_node->current_arrival_idx = 0;
@@ -594,7 +620,7 @@ public:
     if (expands % 1000 == 0) {
       std::cout << "LL expanded: " << expands << " open: " << open.size() << " nodes: " << T_n->size() << " f-score " << current->fScore << std::endl;
     }
-    
+
     // assert(current->fScore >= last_f_score);
     last_f_score = current->fScore;
     bool is_at_goal = current->reaches_goal;
@@ -636,11 +662,11 @@ public:
         const auto node_state = result[i].first->state;
         const fcl::Vector3f current_pos = robot->getTransform(node_state).translation();
         const auto &motion = motions.motions.at(result[i+1].first->arrivals[result[i+1].second].used_motion);
-        
+
         for (size_t k = 0; k < motion.states.size()-1; ++k) // skipping the last state
         {
           const auto state = motion.states[k];
-          ob::State* motion_state = si->allocState(); // alternative 
+          ob::State* motion_state = si->allocState(); // alternative
           si->copyState(motion_state, state);
           const fcl::Vector3f relative_pos = robot->getTransform(state).translation();
           robot->setPosition(motion_state, current_pos + relative_pos);
@@ -662,7 +688,7 @@ public:
         for (size_t k = 0; k < motion.actions.size(); ++k)
         {
           const auto& action = motion.actions[k];
-          oc::Control* motion_action = si->allocControl(); 
+          oc::Control* motion_action = si->allocControl();
           si->copyControl(motion_action, action);
           ll_result.actions.push_back(motion_action);
         }
@@ -718,14 +744,14 @@ public:
         assert(dist > delta);
         #if 0
         auto transform = robot->getTransform(ll_result.trajectory.at(time_index), 0);
-        fcl::CollisionObjectf motion_state_co(robot->getCollisionGeometry(0)); 
+        fcl::CollisionObjectf motion_state_co(robot->getCollisionGeometry(0));
         motion_state_co.setTranslation(transform.translation());
         motion_state_co.setRotation(transform.rotation());
         motion_state_co.computeAABB();
 
         const auto& other_state = constraint.constrained_state;
         auto other_transform = robot->getTransform(other_state, 0);
-        fcl::CollisionObjectf other_robot_co(robot->getCollisionGeometry(0)); 
+        fcl::CollisionObjectf other_robot_co(robot->getCollisionGeometry(0));
         other_robot_co.setTranslation(other_transform.translation());
         other_robot_co.setRotation(other_transform.rotation());
         other_robot_co.computeAABB();
@@ -828,7 +854,7 @@ public:
       motion->collision_manager->collide(bpcm_env.get(), &collision_data, fcl::DefaultCollisionFunction<float>);
       motionValid = !collision_data.result.isCollision();
       motion->collision_manager->shift(-offset);
-    
+
       if (!motionValid) {
         // std::cout << "skip invalid motion" << std::endl;
         continue;
@@ -863,7 +889,7 @@ public:
           }
 
         }
-      } 
+      }
 
 #endif
 
@@ -873,7 +899,7 @@ public:
         continue;
       }
       // Check if we have this state (or any within delta/2) already
-      query_n->state = tmpState;  
+      query_n->state = tmpState;
       // avoid considering this an old state for very short motions
       float radius = delta*(1-alpha);
       T_n->nearestR(query_n, radius, neighbors_n);

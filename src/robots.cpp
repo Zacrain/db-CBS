@@ -1469,7 +1469,7 @@ std::shared_ptr<Robot> create_robot(
   }
   else if (robotType == "dingo_differential_drive")
   {
-    robot.reset(new DingoDifferentialDrive());
+    robot.reset(new DingoDifferentialDrive(positionBounds));
   }
 
   else
