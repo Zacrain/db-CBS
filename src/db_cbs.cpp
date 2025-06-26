@@ -34,7 +34,7 @@
 namespace ob = ompl::base;
 namespace oc = ompl::control;
 
-// Conflicts 
+// Conflicts
 struct Conflict {
   float time;
   size_t robot_idx_i;
@@ -55,7 +55,7 @@ struct HighLevelNode {
     std::vector<std::vector<Constraint>> constraints;
     // std::map<size_t, std::vector<Constraint>> constraints;
 
-    float cost; 
+    float cost;
     int id;
 
     typename boost::heap::d_ary_heap<HighLevelNode, boost::heap::arity<2>,
@@ -78,7 +78,7 @@ void print_solution(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Co
         for (size_t i = 0; i < all_robots.size(); ++i){
             std::cout << "robot " << i << std::endl;
             if (t >= solution[i].trajectory.size()){
-                node_state = solution[i].trajectory.back();    
+                node_state = solution[i].trajectory.back();
             }
             else {
                 node_state = solution[i].trajectory[t];
@@ -90,17 +90,17 @@ void print_solution(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Co
 }
 
 // export path to .yaml file
-void export_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Control*>>& solution, 
+void export_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Control*>>& solution,
                         const std::vector<std::shared_ptr<Robot>>& robots, std::string outputFile){
     std::ofstream out(outputFile);
     std::vector<double> reals;
     float cost = 0;
     for (auto& n : solution)
       cost += n.cost;
-    out << "cost: " << cost << std::endl; 
+    out << "cost: " << cost << std::endl;
     out << "result:" << std::endl;
-    for (size_t i = 0; i < solution.size(); ++i){ 
-        auto si = robots[i]->getSpaceInformation(); 
+    for (size_t i = 0; i < solution.size(); ++i){
+        auto si = robots[i]->getSpaceInformation();
         out << "  - states:" << std::endl;
         for (size_t j = 0; j < solution[i].trajectory.size(); ++j){
             const auto node_state = solution[i].trajectory[j];
@@ -133,7 +133,7 @@ bool getEarliestConflict(
 
     ob::State* node_state;
     std::vector<ob::State*> node_states;
-    
+
     for (size_t t = 0; t <= max_t; ++t){
         // std::cout << "TIMESTAMP: " << t << std::endl;
         node_states.clear();
@@ -141,7 +141,7 @@ bool getEarliestConflict(
         for (size_t i = 0; i < all_robots.size(); ++i){
             // std::cout << "ROBOT " << i << std::endl;
             if (t >= solution[i].trajectory.size()){
-                node_state = solution[i].trajectory.back();    
+                node_state = solution[i].trajectory.back();
             }
             else {
                 node_state = solution[i].trajectory[t];
@@ -177,7 +177,7 @@ bool getEarliestConflict(
             si_j->printState(early_conflict.robot_state_j);
 #endif
             return true;
-        } 
+        }
     }
     return false;
 }
@@ -188,7 +188,7 @@ void createConstraintsFromConflicts(const Conflict& early_conflict, std::map<siz
     constraints[early_conflict.robot_idx_j].push_back({early_conflict.time, early_conflict.robot_state_j});
 }
 
-void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Control*>>& solution, 
+void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*, oc::Control*>>& solution,
                         const std::vector<std::shared_ptr<Robot>>& robots, std::string outputFile){
     std::ofstream out(outputFile);
     std::vector<double> reals;
@@ -203,7 +203,7 @@ void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*
       max_a = std::max(max_a, sol.actions.size());
     }
 
-    out << "cost: " << cost << std::endl; 
+    out << "cost: " << cost << std::endl;
     out << "result:" << std::endl;
     out << "  - states:" << std::endl;
     std::vector<double> joint_state;
@@ -213,9 +213,9 @@ void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*
         out << "      - [";
         for (size_t i = 0; i < robots.size(); ++i){
             std::vector<double> reals;
-            auto si = robots[i]->getSpaceInformation(); 
+            auto si = robots[i]->getSpaceInformation();
             if (t >= solution[i].trajectory.size()){
-                node_state = solution[i].trajectory.back();    
+                node_state = solution[i].trajectory.back();
             }
             else {
                 node_state = solution[i].trajectory[t];
@@ -241,7 +241,7 @@ void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*
         out << "[";
         for (size_t i = 0; i < robots.size(); ++i){
             std::vector<double> reals;
-            auto si = robots[i]->getSpaceInformation(); 
+            auto si = robots[i]->getSpaceInformation();
             const size_t dim = si->getControlSpace()->getDimension();
             if (t >= solution[i].actions.size()){
                 if (solution[i].actions.size() > 0) {
@@ -274,13 +274,12 @@ void export_joint_solutions(const std::vector<LowLevelPlan<AStarNode*,ob::State*
         joint_action.clear();
     }
 
-    
 }
 
 #define dynobench_base "../dynoplan/dynobench/"
 
 int main(int argc, char* argv[]) {
-    
+
     namespace po = boost::program_options;
     // Declare the supported options.
     po::options_description desc("Allowed options");
@@ -365,6 +364,14 @@ int main(int argc, char* argv[]) {
     for (const auto &robot_node : env["robots"]) {
         auto robotType = robot_node["type"].as<std::string>();
         std::shared_ptr<Robot> robot = create_robot(robotType, position_bounds);
+
+        // Override robot dt from config if specified
+        if (cfg["robot_dt"]) {
+            float config_dt = cfg["robot_dt"].as<float>();
+            std::cout << "Overriding robot dt from " << robot->dt() << "s to " << config_dt << "s" << std::endl;
+            robot->set_dt(config_dt);
+        }
+
         robots.push_back(robot);
 
         std::vector<double> start_reals;
@@ -391,7 +398,17 @@ int main(int argc, char* argv[]) {
                 motionsFile = "../motions/double_integrator_0_sorted.msgpack";
             } else if (robotType == "car_first_order_with_1_trailers_0") {
                 motionsFile = "../motions/car_first_order_with_1_trailers_0_sorted.msgpack";
+            } else if (robotType == "dingo_differential_drive") {
+                // Check if a custom motions file is specified in config
+                if (cfg["motions"]) {
+                    motionsFile = cfg["motions"].as<std::string>();
+                    std::cout << "Using custom motions file from config: " << motionsFile << std::endl;
+                } else {
+                    motionsFile = "../motions/dingo_differential_drive_sorted.msgpack";
+                    std::cout << "Using default motions file: " << motionsFile << std::endl;
+                }
             } else {
+                std::cout << "ERROR: Unknown motion filename for robot type: " << robotType << std::endl;
                 throw std::runtime_error("Unknown motion filename for this robottype!");
             }
 
@@ -433,7 +450,7 @@ int main(int argc, char* argv[]) {
 
             LowLevelPlan<AStarNode*,ob::State*,oc::Control*> ll_result;
             std::vector<double> v_nanf(starts[i].size(), nanf(""));
-            llplanner.search(robot_motions.at(robot_types[i]), v_nanf, goals[i], 
+            llplanner.search(robot_motions.at(robot_types[i]), v_nanf, goals[i],
                 obstacles, workspace_aabb, robots[i], {}, /*reverse_search*/true, ll_result, nullptr, &heuristics[i]);
             std::cout << "computed heuristic with " << heuristics[i]->size() << " entries." << std::endl;
         }
@@ -487,7 +504,7 @@ int main(int argc, char* argv[]) {
 
         solved_db = false;
         HighLevelNode start;
-        
+
         start.solution.resize(env["robots"].size());
         start.constraints.resize(env["robots"].size());
         start.cost = 0;
@@ -496,7 +513,7 @@ int main(int argc, char* argv[]) {
         bool start_node_valid = true;
         for (const auto &robot_node : env["robots"]) {
             DBAstar<Constraint> llplanner(delta, alpha);
-            bool success = llplanner.search(robot_motions.at(robot_types[i]), starts[i], goals[i], 
+            bool success = llplanner.search(robot_motions.at(robot_types[i]), starts[i], goals[i],
                 obstacles, workspace_aabb, robots[i], start.constraints[i], /*reverse_search*/false, start.solution[i], heuristics[i]);
             if (!success) {
                 std::cout << "Couldn't find initial solution for robot " << i << "." << std::endl;
@@ -507,11 +524,11 @@ int main(int argc, char* argv[]) {
             start.cost += start.solution[i].cost;
             std::cout << "High Level Node Cost: " << start.cost << std::endl;
             i++;
-        } 
+        }
         if (!start_node_valid) {
             continue;
         }
-        
+
         typename boost::heap::d_ary_heap<HighLevelNode, boost::heap::arity<2>,
                                         boost::heap::mutable_<true> > open;
         auto handle = open.push(start);
@@ -530,10 +547,10 @@ int main(int argc, char* argv[]) {
                 export_joint_solutions(P.solution, robots, jointFile);
 
                 std::cout << "warning: using new multirobot optimization" << std::endl;
-            
+
                 const bool sum_robot_cost = true;
                 bool feasible = execute_optimizationMultiRobot(inputFile,
-                                                    outputFile, 
+                                                    outputFile,
                                                     optimizationFile,
                                                     dynobench_base,
                                                     sum_robot_cost);
@@ -548,7 +565,7 @@ int main(int argc, char* argv[]) {
             if (expands % 100 == 0) {
                 std::cout << "HL expanded: " << expands << " open: " << open.size() << " cost " << P.cost << " conflict at " << inter_robot_conflict.time << std::endl;
             }
-        
+
             std::map<size_t, std::vector<Constraint>> constraints;
             createConstraintsFromConflicts(inter_robot_conflict, constraints);
             for (const auto& c : constraints){
@@ -566,8 +583,8 @@ int main(int argc, char* argv[]) {
 
                 // run the low level planner
                 DBAstar<Constraint> llplanner(delta, alpha);
-                bool success = llplanner.search(robot_motions.at(robot_types[i]), starts[i], goals[i], 
-            		obstacles, workspace_aabb, robots[i], newNode.constraints[i], /*reverse_search*/false, newNode.solution[i], heuristics[i]); 
+                bool success = llplanner.search(robot_motions.at(robot_types[i]), starts[i], goals[i],
+            		obstacles, workspace_aabb, robots[i], newNode.constraints[i], /*reverse_search*/false, newNode.solution[i], heuristics[i]);
 
                 if (success) {
                     newNode.cost += newNode.solution[i].cost;
@@ -578,7 +595,7 @@ int main(int argc, char* argv[]) {
 
                     auto handle = open.push(newNode);
                     (*handle).handle = handle;
-                    
+
                     id++;
                 }
             }

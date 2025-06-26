@@ -1241,7 +1241,7 @@ class DingoDifferentialDrive : public Robot
     si_ = std::make_shared<oc::SpaceInformation>(space, cspace);
 
     // Remaining parameters
-    dt_ = 1.0f / 60.0f; // 60 Hz But less imporatant here, because motion primitives are used. TODO: really?
+    dt_ = 1.0f / 20.0f; // 20 Hz - Match motion primitive sampling rate for accurate timing
     is2D_ = true; // Dingo operates on a 2D plane
     max_speed_ = std::max(fabsf(v_min), fabsf(v_max));
   }
@@ -1252,7 +1252,11 @@ class DingoDifferentialDrive : public Robot
     const double duration,
     ompl::base::State *result) override
   {
-    // TODO: use motion primitives.
+    // std::cout << "WARNING: DingoDifferentialDrive::propagate() called - this should not happen with motion primitives!" << std::endl;
+    // result->as<ob::SE2StateSpace::StateType>()->setX(start->as<ob::SE2StateSpace::StateType>()->getX());
+    // result->as<ob::SE2StateSpace::StateType>()->setY(start->as<ob::SE2StateSpace::StateType>()->getY());
+    // result->as<ob::SE2StateSpace::StateType>()->setYaw(start->as<ob::SE2StateSpace::StateType>()->getYaw());
+    throw std::runtime_error("DingoDifferentialDrive::propagate() should not be called directly, use motion primitives instead.");
   }
 
   fcl::Transform3f getTransform(

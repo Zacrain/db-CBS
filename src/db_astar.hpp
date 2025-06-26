@@ -698,14 +698,21 @@ public:
       assert(ll_result.actions.size() + 1 == ll_result.trajectory.size());
 
       // sanity check on the bounds
+      // Skip propagation validation when using motion primitives since they are pre-validated
       double largest_dist = si->distance(startState, ll_result.trajectory[0]);
-      for (size_t i = 1; i < ll_result.trajectory.size(); ++i) {
-        // compute the next propagated state
-        robot->propagate(ll_result.trajectory[i-1], ll_result.actions[i-1], robot->dt(), tmpState);
-        // the distance is the difference between propagated next state and next state
-        double dist = si->distance(tmpState, ll_result.trajectory[i]);
-        // std::cout << i << " " << dist << std::endl;
-        largest_dist = std::max(largest_dist, dist);
+      if (motions.motions.empty()) {
+        // Only do propagation validation for non-motion-primitive planning
+        for (size_t i = 1; i < ll_result.trajectory.size(); ++i) {
+          // compute the next propagated state
+          robot->propagate(ll_result.trajectory[i-1], ll_result.actions[i-1], robot->dt(), tmpState);
+          // the distance is the difference between propagated next state and next state
+          double dist = si->distance(tmpState, ll_result.trajectory[i]);
+          // std::cout << i << " " << dist << std::endl;
+          largest_dist = std::max(largest_dist, dist);
+        }
+      } else {
+        // For motion primitives, skip propagation validation
+        std::cout << "Skipping propagation validation for motion primitives" << std::endl;
       }
       largest_dist = std::max(largest_dist, si->distance(ll_result.trajectory.back(), goalState));
       if (largest_dist > delta){

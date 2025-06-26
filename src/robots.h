@@ -46,6 +46,11 @@ public:
     return dt_;
   }
 
+  void set_dt(float dt)
+  {
+    dt_ = dt;
+  }
+
   float is2D() const
   {
     return is2D_;
@@ -67,24 +72,24 @@ protected:
 class MultiRobotGoalState: public ompl::base::GoalState
 {
 public:
-    MultiRobotGoalState(const ompl::base::SpaceInformationPtr &si): 
+    MultiRobotGoalState(const ompl::base::SpaceInformationPtr &si):
         ompl::base::GoalState(si)
     {
     }
 
     size_t numRobots() const
     {
-      auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get()); 
+      auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get());
       auto csp = csi->getStateSpace()->as<ompl::base::CompoundStateSpace>();
       return csp->getSubspaceCount();
     }
 
     double distanceGoal(const ompl::base::State* st, int robot_idx) const
     {
-      auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get()); 
+      auto csi = dynamic_cast<ompl::control::SpaceInformation*>(si_.get());
       auto csp = csi->getStateSpace()->as<ompl::base::CompoundStateSpace>();
-      
-      // auto csi = dynamic_cast<ompl::base::CompoundStateSpace*>(si_.get()); 
+
+      // auto csi = dynamic_cast<ompl::base::CompoundStateSpace*>(si_.get());
       auto cst = st->as<ompl::base::CompoundStateSpace::StateType>();
       auto cgoal_state = state_->as<ompl::base::CompoundStateSpace::StateType>();
       auto si_k = csp->getSubspace(robot_idx);
