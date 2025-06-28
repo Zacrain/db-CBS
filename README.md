@@ -46,7 +46,7 @@ sudo apt install libfcl-dev
 
 # OMPL (Open Motion Planning Library)
 # Needs to be compiled from source. Visit: https://ompl.kavrakilab.org/installation.html
-# And install download the current installation script from the "From Source" section.
+# And download the current installation script from the "From Source" section.
 # Don't forget to make the downloaded script executable:
 # (While in, e.g., ~/Downloads:)
 chmod u+x install-ompl-ubuntu.sh
@@ -75,6 +75,9 @@ export PYTHONPATH=/opt/openrobots/lib/python3.12/site-packages:$PYTHONPATH
 
 # LZ4 (Fast lossless compression algorithm)
 sudo apt install liblz4-dev
+
+# Open Dynamics Engine (ODE)
+sudo apt install libode-dev
 ```
 
 To run the benchmark script it is additionally necessary to satisfy the following requirements for your python environment. (Here, using a dedicated virtual environment as system level doesn't work without risking breaking packages.)
