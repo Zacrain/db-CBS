@@ -1207,7 +1207,7 @@ class DingoDifferentialDrive : public Robot
     // float v_min = -1.3f, float v_max = 1.3f, float half_axle_length = 0.2405f,
     // float w_min = v_min / 0.2405f, float w_max = v_max / 0.2405f,
     // float length = 0.551f, float width = 0.517f, float height = 0.11f,
-    float dt = 1.0f / 60.0f)
+    float dt = 1.0f / 20.0f)
   {
     // Collision Shape
     float length = 0.551f; // Length along x-axis (forward direction)
@@ -1215,9 +1215,20 @@ class DingoDifferentialDrive : public Robot
     float height = 0.11f;  // Height along z-axis (upwards
     geom_.emplace_back(new fcl::Boxf(length, width, height));
 
-    // State Space and Position Bounds
-    std::shared_ptr<ob::SE2StateSpace> space = std::make_shared<ob::SE2StateSpace>();
-    space->setBounds(position_bounds);
+    // State Space
+    std::shared_ptr<DingoDifferentialDrive::StateSpace> space = std::make_shared<StateSpace>();
+    // Position Bounds
+    space->setPositionBounds(position_bounds);
+    // Linear velocity Bounds
+    ob::RealVectorBounds lin_vel_bounds(1);
+    lin_vel_bounds.setLow(-1.3);
+    lin_vel_bounds.setHigh(1.3);
+    space->setLinearVelocityBounds(lin_vel_bounds);
+    // Angular velocity Bounds
+    ob::RealVectorBounds ang_vel_bounds(1);
+    ang_vel_bounds.setLow(-1.3 / 0.2405);
+    ang_vel_bounds.setHigh(1.3 / 0.2405);
+    space->setAngularVelocityBounds(ang_vel_bounds);
 
     // Control Space and Control Bounds
     std::shared_ptr<oc::RealVectorControlSpace> cspace = std::make_shared<oc::RealVectorControlSpace>(space, 2);
@@ -1241,7 +1252,8 @@ class DingoDifferentialDrive : public Robot
     si_ = std::make_shared<oc::SpaceInformation>(space, cspace);
 
     // Remaining parameters
-    dt_ = 1.0f / 20.0f; // 20 Hz - Match motion primitive sampling rate for accurate timing
+    // dt_ = 1.0f / 20.0f; // 20 Hz - Match motion primitive sampling rate for accurate timing
+    dt_ = dt;
     is2D_ = true; // Dingo operates on a 2D plane
     max_speed_ = std::max(fabsf(v_min), fabsf(v_max));
   }
@@ -1263,7 +1275,7 @@ class DingoDifferentialDrive : public Robot
     const ompl::base::State *state,
     size_t part = 0) override
   {
-    auto stateTyped = state->as<ob::SE2StateSpace::StateType>();
+    auto stateTyped = state->as<StateSpace::StateType>();
 
     fcl::Transform3f result;
     result = Eigen::Translation<float, 3>(fcl::Vector3f(stateTyped->getX(), stateTyped->getY(), 0.0f));
@@ -1274,10 +1286,161 @@ class DingoDifferentialDrive : public Robot
 
   void setPosition(ompl::base::State* state, const fcl::Vector3f position, size_t part = 0) override
   {
-    auto stateTyped = state->as<ob::SE2StateSpace::StateType>();
+    auto stateTyped = state->as<StateSpace::StateType>();
     stateTyped->setX(position(0));
     stateTyped->setY(position(1));
   }
+
+  protected:
+  class StateSpace : public ob::CompoundStateSpace
+  {
+  public:
+    class StateType : public ob::CompoundStateSpace::StateType
+    {
+    public:
+      StateType() = default;
+
+      double getX() const
+      {
+        return as<ob::RealVectorStateSpace::StateType>(0)->values[0];
+      }
+
+      double getY() const
+      {
+        return as<ob::RealVectorStateSpace::StateType>(0)->values[1];
+      }
+
+      double getYaw() const
+      {
+        return as<ob::SO2StateSpace::StateType>(1)->value;
+      }
+
+      double getLinearVelocity() const
+      {
+        return as<ob::RealVectorStateSpace::StateType>(2)->values[0];
+      }
+
+      double getAngularVelocity() const
+      {
+        return as<ob::RealVectorStateSpace::StateType>(3)->values[0];
+      }
+
+      void setX(double x)
+      {
+        as<ob::RealVectorStateSpace::StateType>(0)->values[0] = x;
+      }
+
+      void setY(double y)
+      {
+        as<ob::RealVectorStateSpace::StateType>(0)->values[1] = y;
+      }
+
+      void setYaw(double yaw)
+      {
+        as<ob::SO2StateSpace::StateType>(1)->value = yaw;
+      }
+
+      void setLinearVelocity(double velocity)
+      {
+        as<ob::RealVectorStateSpace::StateType>(2)->values[0] = velocity;
+      }
+
+      void setAngularVelocity(double angularVelocity)
+      {
+        as<ob::RealVectorStateSpace::StateType>(3)->values[0] = angularVelocity;
+      }
+    }; // Sub-class StateType
+
+    StateSpace()
+    {
+      setName("DingoDSO" + getName());
+      type_ = ob::STATE_SPACE_TYPE_COUNT + 0;
+      addSubspace(std::make_shared<ob::RealVectorStateSpace>(2), 1.0);  // position
+      addSubspace(std::make_shared<ob::SO2StateSpace>(), 1.0);          // orientation
+      addSubspace(std::make_shared<ob::RealVectorStateSpace>(1), 0.5);  // velocity
+      addSubspace(std::make_shared<ob::RealVectorStateSpace>(1), 0.5);  // angular velocity
+      lock();
+    }
+
+    ~StateSpace() override = default;
+
+    void setPositionBounds(const ob::RealVectorBounds &bounds)
+    {
+      as<ob::RealVectorStateSpace>(0)->setBounds(bounds);
+    }
+
+    const ob::RealVectorBounds &getPositionBounds() const
+    {
+      return as<ob::RealVectorStateSpace>(0)->getBounds();
+    }
+
+    void setLinearVelocityBounds(const ob::RealVectorBounds &bounds)
+    {
+      as<ob::RealVectorStateSpace>(2)->setBounds(bounds);
+    }
+
+    const ob::RealVectorBounds &getLinearVelocityBounds() const
+    {
+      return as<ob::RealVectorStateSpace>(2)->getBounds();
+    }
+
+    void setAngularVelocityBounds(const ob::RealVectorBounds &bounds)
+    {
+      as<ob::RealVectorStateSpace>(3)->setBounds(bounds);
+    }
+
+    const ob::RealVectorBounds &getAngularVelocityBounds() const
+    {
+      return as<ob::RealVectorStateSpace>(3)->getBounds();
+    }
+
+    ob::State *allocState() const override
+    {
+      auto *state = new StateType();
+      allocStateComponents(state);
+      return state;
+    }
+
+    void freeState(ob::State *state) const override
+    {
+      CompoundStateSpace::freeState(state);
+    }
+
+    void registerProjections() override
+    {
+      class DefaultProjection : public ob::ProjectionEvaluator
+      {
+      public:
+        DefaultProjection(const ob::StateSpace *space) : ob::ProjectionEvaluator(space)
+        {
+        }
+
+        unsigned int getDimension() const override
+        {
+          return 2;
+        }
+
+        void defaultCellSizes() override
+        {
+          cellSizes_.resize(2);
+          bounds_ = space_->as<StateSpace>()->getPositionBounds();
+          cellSizes_[0] = (bounds_.high[0] - bounds_.low[0]) / ompl::magic::PROJECTION_DIMENSION_SPLITS;
+          cellSizes_[1] = (bounds_.high[1] - bounds_.low[1]) / ompl::magic::PROJECTION_DIMENSION_SPLITS;
+        }
+
+        void project(const ob::State *state, Eigen::Ref<Eigen::VectorXd> projection) const override
+        {
+          // projection = Eigen::Map<const Eigen::VectorXd>(
+          //     state->as<ob::SE2StateSpace::StateType>()->as<ob::RealVectorStateSpace::StateType>(0)->values, 2);
+          auto stateTyped = state->as<StateSpace::StateType>();
+          projection[0] = stateTyped->getX();
+          projection[1] = stateTyped->getY();
+        }
+      };
+
+      registerDefaultProjection(std::make_shared<DefaultProjection>(this));
+    }
+  }; // Sub-class StateSpace
 
 }; // Class DingoDifferentialDrive
 
