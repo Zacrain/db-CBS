@@ -288,6 +288,7 @@ int main(int argc, char* argv[]) {
     std::string jointFile;
     std::string optimizationFile;
     std::string cfgFile;
+    bool skipOptimization = false;
 
     // std::string outputFileSimple;
     desc.add_options()
@@ -295,8 +296,9 @@ int main(int argc, char* argv[]) {
       ("input,i", po::value<std::string>(&inputFile)->required(), "input file (yaml)")
       ("output,o", po::value<std::string>(&outputFile)->required(), "output file (yaml)")
       ("joint,jnt", po::value<std::string>(&jointFile)->required(), "joint output file (yaml)")
-      ("optimization,opt", po::value<std::string>(&optimizationFile)->required(), "optimization file (yaml)")
-      ("cfg,c", po::value<std::string>(&cfgFile)->required(), "configuration file (yaml)");
+      ("optimization,opt", po::value<std::string>(&optimizationFile), "optimization file (yaml)")
+      ("cfg,c", po::value<std::string>(&cfgFile)->required(), "configuration file (yaml)")
+      ("skip-optimization", po::bool_switch(&skipOptimization), "skip post-processing optimization and use motion primitives solution as-is");
 
     try {
       po::variables_map vm;
@@ -309,6 +311,13 @@ int main(int argc, char* argv[]) {
       }
     } catch (po::error& e) {
       std::cerr << e.what() << std::endl << std::endl;
+      std::cerr << desc << std::endl;
+      return 1;
+    }
+
+    // Validate optimization file requirement
+    if (!skipOptimization && optimizationFile.empty()) {
+      std::cerr << "Error: optimization file is required when not skipping optimization" << std::endl;
       std::cerr << desc << std::endl;
       return 1;
     }
@@ -546,16 +555,21 @@ int main(int argc, char* argv[]) {
                 export_solutions(P.solution, robots, outputFile);
                 export_joint_solutions(P.solution, robots, jointFile);
 
-                std::cout << "warning: using new multirobot optimization" << std::endl;
-
-                const bool sum_robot_cost = true;
-                bool feasible = execute_optimizationMultiRobot(inputFile,
-                                                    outputFile,
-                                                    optimizationFile,
-                                                    dynobench_base,
-                                                    sum_robot_cost);
-                if (feasible) {
+                if (skipOptimization) {
+                    std::cout << "Skipping optimization as requested - using motion primitives solution as-is" << std::endl;
                     return 0;
+                } else {
+                    std::cout << "warning: using new multirobot optimization" << std::endl;
+
+                    const bool sum_robot_cost = true;
+                    bool feasible = execute_optimizationMultiRobot(inputFile,
+                                                        outputFile,
+                                                        optimizationFile,
+                                                        dynobench_base,
+                                                        sum_robot_cost);
+                    if (feasible) {
+                        return 0;
+                    }
                 }
 
                 break;

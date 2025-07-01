@@ -1289,6 +1289,7 @@ class DingoDifferentialDrive : public Robot
     auto stateTyped = state->as<StateSpace::StateType>();
     stateTyped->setX(position(0));
     stateTyped->setY(position(1));
+    // TODO: need to include further states?
   }
 
   protected:
@@ -1317,11 +1318,13 @@ class DingoDifferentialDrive : public Robot
 
       double getLinearVelocity() const
       {
+        // TODO: is this used by db-CBS?
         return as<ob::RealVectorStateSpace::StateType>(2)->values[0];
       }
 
       double getAngularVelocity() const
       {
+        // TODO: is this used by db-CBS?
         return as<ob::RealVectorStateSpace::StateType>(3)->values[0];
       }
 
@@ -1342,11 +1345,13 @@ class DingoDifferentialDrive : public Robot
 
       void setLinearVelocity(double velocity)
       {
+        // TODO: is this used by db-CBS?
         as<ob::RealVectorStateSpace::StateType>(2)->values[0] = velocity;
       }
 
       void setAngularVelocity(double angularVelocity)
       {
+        // TODO: is this used by db-CBS?
         as<ob::RealVectorStateSpace::StateType>(3)->values[0] = angularVelocity;
       }
     }; // Sub-class StateType
