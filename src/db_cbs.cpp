@@ -289,6 +289,7 @@ int main(int argc, char* argv[]) {
     std::string optimizationFile;
     std::string cfgFile;
     bool skipOptimization = false;
+    bool firstSolutionOnly = false;
 
     // std::string outputFileSimple;
     desc.add_options()
@@ -298,7 +299,8 @@ int main(int argc, char* argv[]) {
       ("joint,jnt", po::value<std::string>(&jointFile)->required(), "joint output file (yaml)")
       ("optimization,opt", po::value<std::string>(&optimizationFile), "optimization file (yaml)")
       ("cfg,c", po::value<std::string>(&cfgFile)->required(), "configuration file (yaml)")
-      ("skip-optimization", po::bool_switch(&skipOptimization), "skip post-processing optimization and use motion primitives solution as-is");
+      ("skip-optimization", po::bool_switch(&skipOptimization), "skip post-processing optimization and use motion primitives solution as-is")
+      ("first-solution-only", po::bool_switch(&firstSolutionOnly), "exit immediately after finding first feasible solution (do not search for better solutions)");
 
     try {
       po::variables_map vm;
@@ -551,7 +553,7 @@ int main(int argc, char* argv[]) {
             Conflict inter_robot_conflict;
             if (!getEarliestConflict(P.solution, robots, col_mng_robots, col_mng_objs, inter_robot_conflict)) {
                 solved_db = true;
-                std::cout << "Final solution! cost: " << P.cost << std::endl;
+                std::cout << "✓ Final solution found! cost: " << P.cost << std::endl;
                 export_solutions(P.solution, robots, outputFile);
                 export_joint_solutions(P.solution, robots, jointFile);
 
@@ -613,6 +615,14 @@ int main(int argc, char* argv[]) {
                     id++;
                 }
             }
+        }
+
+        // If we exit the while loop without finding a solution
+        if (!solved_db) {
+            std::cout << "✗ No solution found with delta=" << delta << " and motions=" << max_motions << std::endl;
+        } else if (firstSolutionOnly) {
+            std::cout << "Exiting with first feasible solution as requested (--first-solution-only)" << std::endl;
+            return 0;
         }
     }
 
